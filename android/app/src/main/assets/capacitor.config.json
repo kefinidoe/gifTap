@@ -1,0 +1,13 @@
+{
+	"appId": "app.giftap.mobile",
+	"appName": "GifTap",
+	"webDir": "dist",
+	"backgroundColor": "#000000",
+	"server": {
+		"androidScheme": "https"
+	},
+	"android": {
+		"backgroundColor": "#000000",
+		"allowMixedContent": false
+	}
+}

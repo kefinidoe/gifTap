@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>GifTap Capture</title>
+    <style>
+      body {
+        width: 300px;
+        margin: 0;
+        padding: 16px;
+        background: #000;
+        color: #fafafa;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 16px;
+        font-weight: 800;
+      }
+      h1 span {
+        color: #d4ff00;
+      }
+      p {
+        margin: 0 0 14px;
+        font-size: 12px;
+        line-height: 1.45;
+        color: #a1a1aa;
+      }
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #d4d4d8;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid #27272a;
+        background: #111113;
+        color: #fff;
+        font-size: 12px;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      button {
+        flex: 1;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: none;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .primary {
+        background: #d4ff00;
+        color: #000;
+      }
+      .secondary {
+        background: #18181b;
+        color: #fafafa;
+        border: 1px solid #27272a;
+      }
+      .status {
+        margin-top: 8px;
+        font-size: 11px;
+        color: #d4ff00;
+        min-height: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Gif<span>Tap</span> Capture</h1>
+    <p>Hover any GIF on x.com and click "Send with GifTap", or right-click to send directly.</p>
+    <label for="appUrl">GifTap App URL</label>
+    <input id="appUrl" type="url" placeholder="https://your-giftap-app.vercel.app" />
+    <div class="actions">
+      <button id="saveBtn" class="primary" type="button">Save URL</button>
+      <button id="openBtn" class="secondary" type="button">Open GifTap</button>
+    </div>
+    <div id="status" class="status"></div>
+    <script src="popup.js"></script>
+  </body>
+</html>

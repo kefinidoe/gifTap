@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "GifTap — Capture & Send GIFs from X",
+  "version": "1.0.0",
+  "description": "One-click button on X (Twitter) GIFs and right-click context menu to open and share instantly in GifTap.",
+  "permissions": ["contextMenus", "storage"],
+  "host_permissions": ["*://x.com/*", "*://twitter.com/*"],
+  "icons": {
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://x.com/*", "*://twitter.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "GifTap Capture"
+  }
+}
