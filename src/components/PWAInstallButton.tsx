@@ -18,7 +18,7 @@ export function PWAInstallButton() {
         className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-[#D4FF00] px-3.5 py-2 text-xs font-semibold text-black transition-transform active:scale-[0.97] hover:bg-[#c5ee00] whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D4FF00]"
       >
         <Download className="h-3.5 w-3.5" aria-hidden="true" />
-        <span>Install</span>
+        <span>Install App</span>
       </button>
     );
   }

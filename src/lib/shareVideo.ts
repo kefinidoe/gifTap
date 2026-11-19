@@ -1,4 +1,5 @@
 import type { GifItem } from '../types/gif';
+import { apiUrl } from './apiBase';
 
 const filePromiseCache = new Map<string, Promise<File>>();
 const MAX_CACHE_ENTRIES = 12;
@@ -17,7 +18,7 @@ async function fetchBlobWithCorsFallback(mediaUrl: string): Promise<Blob> {
     // Fall through to same-origin proxy when CDN blocks CORS
   }
 
-  const proxyUrl = `/api/gifs/download?url=${encodeURIComponent(mediaUrl)}&filename=giftap`;
+  const proxyUrl = apiUrl(`/api/gifs/download?url=${encodeURIComponent(mediaUrl)}&filename=giftap`);
   const proxyRes = await fetch(proxyUrl);
   if (!proxyRes.ok) {
     throw new Error('Could not fetch GIF video file.');
@@ -27,7 +28,7 @@ async function fetchBlobWithCorsFallback(mediaUrl: string): Promise<Blob> {
 
 async function fetchConvertedMp4Blob(imageUrl: string): Promise<Blob | null> {
   try {
-    const res = await fetch(`/api/gifs/mp4?url=${encodeURIComponent(imageUrl)}`);
+    const res = await fetch(apiUrl(`/api/gifs/mp4?url=${encodeURIComponent(imageUrl)}`));
     if (!res.ok) return null;
     const blob = await res.blob();
     return blob.size > 0 ? blob : null;
@@ -93,7 +94,7 @@ export async function getGifFilePromise(gif: GifItem): Promise<File> {
     throw new Error('No media URL available for this GIF.');
   }
 
-  const res = await fetch(`/api/gifs/gif?url=${encodeURIComponent(mediaUrl)}`);
+  const res = await fetch(apiUrl(`/api/gifs/gif?url=${encodeURIComponent(mediaUrl)}`));
   if (!res.ok) {
     throw new Error('Could not generate .gif file.');
   }

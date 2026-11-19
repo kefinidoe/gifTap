@@ -3,13 +3,13 @@ import {
   ClipboardPaste,
   Download,
   Film,
-  Heart,
   Link2,
   Loader2,
   Trash2,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useExtractHistory } from '../hooks/useExtractHistory';
+import { apiUrl } from '../lib/apiBase';
 import type { ExtractHistoryEntry, GifItem, SourcePlatform } from '../types/gif';
 import { getPlatformLabel, PlatformIcon } from './PlatformIcon';
 import { ShareActionButtons } from './ShareActionButtons';
@@ -17,10 +17,6 @@ import { ShareActionButtons } from './ShareActionButtons';
 interface LinkExtractViewProps {
   initialUrl?: string;
   onConsumeInitialUrl?: () => void;
-  onSearchKeyword?: (query: string) => void;
-  isFavorite: (id: string) => boolean;
-  onToggleFavorite: (gif: GifItem) => void;
-  onRecordSend?: (gif: GifItem) => void;
 }
 
 interface ExtractSuccessResponse {
@@ -30,7 +26,7 @@ interface ExtractSuccessResponse {
 }
 
 const DEFAULT_EXTRACT_ERROR =
-  'Could not find GIF. Make sure link is public and is a video/GIF comment.';
+  'Could not find GIF. Make sure the link is public and contains a video or GIF comment.';
 
 function formatHistoryDate(timestamp: number): string {
   try {
@@ -48,10 +44,6 @@ function formatHistoryDate(timestamp: number): string {
 export function LinkExtractView({
   initialUrl,
   onConsumeInitialUrl,
-  onSearchKeyword,
-  isFavorite,
-  onToggleFavorite,
-  onRecordSend,
 }: LinkExtractViewProps) {
   const [urlInput, setUrlInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -63,31 +55,21 @@ export function LinkExtractView({
   const previewSectionRef = useRef<HTMLDivElement | null>(null);
   const { history, addHistoryEntry, clearHistory } = useExtractHistory();
 
-  const runExtract = useCallback(
-    async (rawLink: string) => {
-      const trimmed = rawLink.trim();
-      if (!trimmed) {
-        setErrorMessage(DEFAULT_EXTRACT_ERROR);
-        return;
-      }
+  const runExtract = useCallback(async (rawLink: string) => {
+    const trimmed = rawLink.trim();
+    if (!trimmed) {
+      setErrorMessage('Paste a TikTok, Instagram, or X link first.');
+      return;
+    }
 
-      const looksLikeUrlOrDomain =
-        /https?:\/\//i.test(trimmed) ||
-        /^(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/|\?|$)/i.test(trimmed);
-
-      if (!looksLikeUrlOrDomain && onSearchKeyword) {
-        onSearchKeyword(trimmed);
-        return;
-      }
-
-      setIsLoading(true);
-      setErrorMessage(null);
-      setExtracted(null);
-      setUseProxyVideo(false);
-      setUseProxyImage(false);
+    setIsLoading(true);
+    setErrorMessage(null);
+    setExtracted(null);
+    setUseProxyVideo(false);
+    setUseProxyImage(false);
 
     try {
-      const response = await fetch(`/api/extract?url=${encodeURIComponent(trimmed)}`);
+      const response = await fetch(apiUrl(`/api/extract?url=${encodeURIComponent(trimmed)}`));
       const data = (await response.json()) as Partial<ExtractSuccessResponse> & {
         error?: string;
       };
@@ -96,28 +78,30 @@ export function LinkExtractView({
         throw new Error(data.error || DEFAULT_EXTRACT_ERROR);
       }
 
-      setExtracted({
+      const nextExtracted: ExtractSuccessResponse = {
         item: data.item,
         platform: data.platform || 'web',
         sourceUrl: data.sourceUrl || trimmed,
-      });
+      };
+      setExtracted(nextExtracted);
+      addHistoryEntry(nextExtracted.sourceUrl, nextExtracted.platform, nextExtracted.item);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : DEFAULT_EXTRACT_ERROR);
     } finally {
       setIsLoading(false);
     }
-  }, [onSearchKeyword]);
+  }, [addHistoryEntry]);
 
   useEffect(() => {
     if (!initialUrl) return;
     setUrlInput(initialUrl);
-    runExtract(initialUrl);
+    void runExtract(initialUrl);
     onConsumeInitialUrl?.();
   }, [initialUrl, runExtract, onConsumeInitialUrl]);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    runExtract(urlInput);
+    void runExtract(urlInput);
   };
 
   const handlePasteClipboard = async () => {
@@ -126,26 +110,16 @@ export function LinkExtractView({
       if (text && text.trim()) {
         const trimmed = text.trim();
         setUrlInput(trimmed);
-        runExtract(trimmed);
+        void runExtract(trimmed);
       }
     } catch {
       // Clipboard permission declined or unavailable
     }
   };
 
-  const handleActionComplete = (
-    action: 'copy' | 'whatsapp' | 'telegram' | 'download' | 'share'
-  ) => {
+  const handleActionComplete = () => {
     if (!extracted) return;
-    if (
-      action === 'download' ||
-      action === 'whatsapp' ||
-      action === 'telegram' ||
-      action === 'share'
-    ) {
-      addHistoryEntry(extracted.sourceUrl, extracted.platform, extracted.item);
-    }
-    onRecordSend?.(extracted.item);
+    addHistoryEntry(extracted.sourceUrl, extracted.platform, extracted.item);
   };
 
   const handleReopenHistory = (entry: ExtractHistoryEntry) => {
@@ -163,21 +137,19 @@ export function LinkExtractView({
 
   const currentVideoSrc =
     extracted?.item.mp4Url && useProxyVideo
-      ? `/api/gifs/download?url=${encodeURIComponent(extracted.item.mp4Url)}&filename=giftap`
+      ? apiUrl(`/api/gifs/download?url=${encodeURIComponent(extracted.item.mp4Url)}&filename=giftap`)
       : extracted?.item.mp4Url || '';
 
   const currentImageSrc =
     extracted?.item.webpUrl && useProxyImage
-      ? `/api/gifs/download?url=${encodeURIComponent(extracted.item.webpUrl)}&filename=giftap`
+      ? apiUrl(`/api/gifs/download?url=${encodeURIComponent(extracted.item.webpUrl)}&filename=giftap`)
       : extracted?.item.webpUrl || '';
-
-  const saved = extracted ? isFavorite(extracted.item.id) : false;
 
   return (
     <div className="space-y-8" ref={previewSectionRef}>
       {/* Extractor Input Panel */}
       <section
-        aria-label="Download GIF from TikTok, Instagram, or X link"
+        aria-label="Paste TikTok, Instagram, or X link"
         className="rounded-3xl border border-white/10 bg-zinc-950 p-4 sm:p-6"
       >
         <div className="max-w-2xl">
@@ -192,11 +164,11 @@ export function LinkExtractView({
             <span>X (Twitter)</span>
           </div>
 
-          <h1 className="mt-2 font-display text-lg sm:text-2xl font-bold text-white">
-            Save GIFs &amp; Loops from Any Post
+          <h1 className="mt-2 font-display text-xl sm:text-2xl font-bold text-white">
+            Extract &amp; Share GIFs Instantly
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-zinc-400">
-            Paste a public TikTok, Instagram Reel, or X link to grab the fast MP4 video for WhatsApp and Telegram.
+            Paste a link or use your phone&apos;s Share menu to open GifTap and grab <span className="text-zinc-200">giftap.mp4</span>.
           </p>
         </div>
 
@@ -207,7 +179,7 @@ export function LinkExtractView({
               aria-hidden="true"
             />
             <input
-              type="text"
+              type="url"
               inputMode="url"
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
@@ -235,7 +207,7 @@ export function LinkExtractView({
             ) : (
               <Download className="h-4 w-4" aria-hidden="true" />
             )}
-            <span>{isLoading ? 'Finding...' : 'Grab GIF'}</span>
+            <span>{isLoading ? 'Extracting...' : 'Extract GIF'}</span>
           </button>
         </form>
 
@@ -247,7 +219,7 @@ export function LinkExtractView({
             className="mt-5 rounded-2xl border border-white/[0.08] bg-black p-6 sm:p-8 flex flex-col items-center justify-center gap-3 text-center"
           >
             <Loader2 className="h-7 w-7 animate-spin text-[#D4FF00]" aria-hidden="true" />
-            <p className="font-display text-base font-semibold text-white">Finding your GIF...</p>
+            <p className="font-display text-base font-semibold text-white">Extracting GIF...</p>
             <div className="mt-2 h-40 w-full max-w-sm rounded-xl bg-zinc-900 animate-pulse" />
           </div>
         )}
@@ -266,35 +238,19 @@ export function LinkExtractView({
         {/* Extracted Looping Video Preview */}
         {extracted && !isLoading && (
           <div className="mt-5 rounded-2xl border border-white/10 bg-black p-4 sm:p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-900 border border-white/10 text-[#D4FF00]">
-                  <PlatformIcon platform={extracted.platform} className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <h2 className="font-display text-sm sm:text-base font-bold text-white truncate">
-                    {extracted.item.title || `${getPlatformLabel(extracted.platform)} GIF`}
-                  </h2>
-                  <p className="text-xs text-zinc-400">
-                    {getPlatformLabel(extracted.platform)} ·{' '}
-                    {currentVideoSrc ? 'Looping MP4 (sound off)' : 'Animated GIF'}
-                  </p>
-                </div>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-900 border border-white/10 text-[#D4FF00]">
+                <PlatformIcon platform={extracted.platform} className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <h2 className="font-display text-sm sm:text-base font-bold text-white truncate">
+                  {extracted.item.title || `${getPlatformLabel(extracted.platform)} GIF`}
+                </h2>
+                <p className="text-xs text-zinc-400">
+                  {getPlatformLabel(extracted.platform)} ·{' '}
+                  {currentVideoSrc ? 'Looping MP4 (silent)' : 'Animated GIF'}
+                </p>
               </div>
-
-              <button
-                type="button"
-                onClick={() => onToggleFavorite(extracted.item)}
-                aria-label={saved ? 'Remove from favorites' : 'Save to favorites'}
-                aria-pressed={saved}
-                className={`flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-xl transition-colors ${
-                  saved
-                    ? 'text-[#FF3B5C] bg-[#FF3B5C]/10'
-                    : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
-                }`}
-              >
-                <Heart className={`h-5 w-5 ${saved ? 'fill-current' : ''}`} aria-hidden="true" />
-              </button>
             </div>
 
             <div className="mt-4 overflow-hidden rounded-2xl border border-white/[0.06] bg-zinc-950 flex items-center justify-center max-h-[52vh]">
@@ -342,14 +298,12 @@ export function LinkExtractView({
         )}
       </section>
 
-      {/* Download History Grid */}
-      <section aria-label="Download History">
+      {/* History Grid (localStorage) */}
+      <section aria-label="History">
         <div className="mb-3 flex items-center justify-between gap-4">
           <div className="flex items-baseline gap-3">
             <h2 className="font-display text-lg font-bold text-white">History</h2>
-            <span className="text-xs text-zinc-500 tabular-nums">
-              {history.length} {history.length === 1 ? 'saved' : 'saved'}
-            </span>
+            <span className="text-xs text-zinc-500 tabular-nums">{history.length} saved</span>
           </div>
 
           {history.length > 0 && (
@@ -367,7 +321,7 @@ export function LinkExtractView({
         {history.length === 0 ? (
           <div className="rounded-3xl border border-white/[0.08] bg-zinc-950 p-6 sm:p-8 text-center">
             <p className="text-sm text-zinc-400">
-              Downloaded TikTok, Instagram, and X GIFs appear here for instant re-sharing.
+              Extracted TikTok, Instagram, and X GIFs are saved here locally for instant re-sharing.
             </p>
           </div>
         ) : (
